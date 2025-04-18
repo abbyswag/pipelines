@@ -13,7 +13,7 @@ class Pipeline:
         OUTPUT_DIR: str = Field(default="/app/pipelines/outputs", description="Folder to save HTML")
 
     def __init__(self):
-        self.name = "AI Teaching Step 3 (API-Friendly)"
+        self.name = "Tutor"
         self.valves = self.Valves()
         os.makedirs(self.valves.OUTPUT_DIR, exist_ok=True)
 
