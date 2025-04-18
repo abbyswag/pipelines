@@ -5,7 +5,7 @@ from openai import OpenAI
 
 class Pipeline:
     class Valves(BaseModel):
-        MODEL_NAME: str = Field(default="gpt-4o-mini", description="LLM model to use")
+        MODEL_NAME: str = Field(default="gpt-4", description="LLM model to use")
         OPENAI_API_KEY: str = Field(default=os.getenv("OPENAI_API_KEY", "sk-abc"), description="API key for OpenAI")
         VLLM_HOST: str = Field(default=os.getenv("VLLM_HOST", "http://localhost:8000/v1"), description="LLM host endpoint")
         MAX_STEPS: int = Field(default=5, description="Max steps to explain")
@@ -40,10 +40,9 @@ class Pipeline:
 
         # Step 1: Generate outline
         outline_prompt = f"""
-You are a highly experienced tutor. The user wants to learn about: \"{topic}\".
-Generate a conversation-style step-by-step learning plan (max {self.valves.MAX_STEPS} steps).
-Each step should be friendly, explain clearly with examples, and sound like you're speaking to the user directly.
-Only return a list of step titles.
+You are a brilliant domain expert and educator AI. The user wants to deeply understand: \"{topic}\".
+Generate a teaching outline with up to {self.valves.MAX_STEPS} conversational, engaging steps.
+Use beginner-friendly titles. One step per line.
 """
         outline_response = llm.chat.completions.create(
             model=self.valves.MODEL_NAME,
@@ -52,16 +51,18 @@ Only return a list of step titles.
         steps_raw = outline_response.choices[0].message.content.strip()
         steps = [line.strip("0123456789. ").strip() for line in steps_raw.splitlines() if line.strip()]
 
-        yield f"📘 Great! Here's how I'll guide you through **{topic}**:
-" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(steps)])
+        yield f"📘 Here's how we'll explore **{topic}** step-by-step:
+\n" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(steps)])
 
-        # Step 2: Explain each step in a conversational way
+        # Step 2: Explain each step conversationally
         for i, step in enumerate(steps):
             explain_prompt = f"""
-Imagine you're a passionate tutor explaining the following step to a beginner:
-"{step}"
-Make it conversational, use relatable examples, and guide them like a mentor.
-Keep it engaging and understandable.
+You are an expert tutor in the topic: \"{topic}\". You're speaking directly to a student who wants to understand the concept of:
+\n"{step}"
+
+Explain this step in a friendly, conversational way.
+Use simple language, analogies, and examples to help the user deeply understand it.
+Ask occasional questions back to the user to engage them.
 """
             explain_response = llm.chat.completions.create(
                 model=self.valves.MODEL_NAME,
@@ -76,4 +77,4 @@ Keep it engaging and understandable.
 {explanation}
 """
 
-        yield "\n✅ That’s the end of our lesson! Let me know if you’d like to explore anything deeper or go over examples again."
+        yield "\n✅ That's it for now! Let me know if you'd like to dive deeper into any step or topic."
