@@ -23,6 +23,8 @@ class Pipeline(FunctionCallingBlueprint):
         MODEL_NAME: str = Field(default="gpt-4", description="Model name for LLM")
         OUTPUT_DIR: str = Field(default="/app/pipelines/outputs", description="Where to store the generated HTMLs")
         MAX_STEPS: int = Field(default=5, description="Max number of learning steps")
+        PUBLIC_HOST: str = Field(default="localhost", description="Host to serve generated HTML")
+        PUBLIC_PORT: int = Field(default=9099, description="Port for HTML server")
 
     class Tools:
         def __init__(self, pipeline):
@@ -72,11 +74,23 @@ Return complete HTML (self-contained).
                 messages=[{"role": "user", "content": prompt}]
             )
             html_code = response.choices[0].message.content.strip()
+            if "<html" not in html_code:
+                html_code = f"""
+<!DOCTYPE html>
+<html>
+<head><title>{step_title}</title></head>
+<body>
+{html_code}
+</body>
+</html>
+"""
             filename = f"{step_title.replace(' ', '_').lower()}_{uuid.uuid4().hex[:6]}.html"
             filepath = os.path.join(self.pipeline.valves.OUTPUT_DIR, filename)
             with open(filepath, "w") as f:
                 f.write(html_code)
-            return f"sandbox://outputs/{filename}"
+
+            public_url = f"http://{self.pipeline.valves.PUBLIC_HOST}:{self.pipeline.valves.PUBLIC_PORT}/outputs/{filename}"
+            return public_url
 
     def __init__(self):
         super().__init__()
@@ -85,6 +99,8 @@ Return complete HTML (self-contained).
             MODEL_NAME=os.getenv("MODEL_NAME", "gpt-4"),
             OUTPUT_DIR=os.getenv("OUTPUT_DIR", "/app/pipelines/outputs"),
             MAX_STEPS=int(os.getenv("MAX_STEPS", 5)),
+            PUBLIC_HOST=os.getenv("PUBLIC_HOST", "localhost"),
+            PUBLIC_PORT=int(os.getenv("PUBLIC_PORT", 9099)),
             pipelines=["*"]
         )
         self.tools = self.Tools(self)
